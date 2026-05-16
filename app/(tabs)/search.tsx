@@ -3,15 +3,16 @@ import SearchBar from "@/components/SearchBar";
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
 import { fetchMovies } from "@/services/api";
-import { updateSearchCount } from "@/services/appwrite";
+import { updateSearchCount } from "@/services/supabaseService";
 import useFetch from "@/services/useFetch";
+import { useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Text, View } from "react-native";
 
 const search = () => {
-	const [searchQuery, setSearchQuery] = useState("");
+	const { query } = useLocalSearchParams<{ query?: string }>();
+	const [searchQuery, setSearchQuery] = useState(query ?? "");
 
-	useFetch;
 	const {
 		data: movies,
 		loading,

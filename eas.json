@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 18.3.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease",
+        "releaseChannel": "production"
+      },
+      "env": {
+        "EAS_BUILD_AUTOMATIC_CACHE": "true"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
