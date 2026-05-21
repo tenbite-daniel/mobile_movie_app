@@ -15,12 +15,12 @@ interface Movie {
   vote_count: number;
 }
 
-interface TrendingMovie {
-  searchTerm: string;
-  movie_id: number;
-  title: string;
-  count: number;
-  poster_url: string;
+interface CastMember {
+  id: number;
+  name: string;
+  character: string;
+  profile_path: string | null;
+  order: number;
 }
 
 interface MovieDetails {
@@ -69,9 +69,122 @@ interface MovieDetails {
   video: boolean;
   vote_average: number;
   vote_count: number;
+  credits?: {
+    cast: CastMember[];
+  };
 }
 
-interface TrendingCardProps {
-  movie: TrendingMovie;
-  index: number;
+interface TVShow {
+  id: number;
+  name: string;
+  adult: boolean;
+  backdrop_path: string;
+  genre_ids: number[];
+  original_language: string;
+  original_name: string;
+  overview: string;
+  popularity: number;
+  poster_path: string;
+  first_air_date: string;
+  vote_average: number;
+  vote_count: number;
+}
+
+interface TVShowDetails {
+  id: number;
+  name: string;
+  adult: boolean;
+  backdrop_path: string | null;
+  first_air_date: string;
+  genres: { id: number; name: string }[];
+  homepage: string | null;
+  number_of_episodes: number;
+  number_of_seasons: number;
+  overview: string | null;
+  popularity: number;
+  poster_path: string | null;
+  status: string;
+  tagline: string | null;
+  vote_average: number;
+  vote_count: number;
+  production_companies: {
+    id: number;
+    logo_path: string | null;
+    name: string;
+    origin_country: string;
+  }[];
+  credits?: {
+    cast: CastMember[];
+  };
+}
+
+interface Anime {
+  id: number;
+  title: {
+    romaji: string;
+    english: string | null;
+  };
+  coverImage: {
+    large: string;
+    extraLarge: string;
+  };
+  bannerImage: string | null;
+  averageScore: number | null;
+  episodes: number | null;
+  status: string;
+  startDate: {
+    year: number | null;
+  };
+  genres: string[];
+  studios: {
+    nodes: { name: string }[];
+  };
+}
+
+interface AnimeDetails {
+  id: number;
+  title: {
+    romaji: string;
+    english: string | null;
+    native: string | null;
+  };
+  coverImage: {
+    extraLarge: string;
+    large: string;
+  };
+  bannerImage: string | null;
+  averageScore: number | null;
+  meanScore: number | null;
+  episodes: number | null;
+  duration: number | null;
+  status: string;
+  startDate: {
+    year: number | null;
+    month: number | null;
+    day: number | null;
+  };
+  endDate: {
+    year: number | null;
+  };
+  genres: string[];
+  description: string | null;
+  studios: {
+    nodes: { name: string }[];
+  };
+  rankings: {
+    rank: number;
+    type: string;
+    allTime: boolean;
+  }[];
+}
+
+interface FavoriteItem {
+  id?: number;
+  user_id: string;
+  item_id: number;
+  type: "movie" | "tv" | "anime";
+  title: string;
+  poster_url: string;
+  vote_average: number;
+  year: string;
 }
