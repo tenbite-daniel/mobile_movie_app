@@ -1,7 +1,7 @@
 import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
 import { useAuth } from "@/context/AuthContext";
-import { WatchStatus, getLocalFavorites, getWatchlistCounts } from "@/services/localFavorites";
+import { WatchStatus, getLocalFavorites, getWatchlist, getWatchlistCounts, getWishlist } from "@/services/localFavorites";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
@@ -17,6 +17,7 @@ const STATUS_LABELS: { status: WatchStatus; label: string; emoji: string }[] = [
 export default function Profile() {
 	const { user, signOut } = useAuth();
 	const [favCount, setFavCount] = useState(0);
+	const [wishlistCount, setWishlistCount] = useState(0);
 	const [watchCounts, setWatchCounts] = useState<Record<WatchStatus, number>>({
 		plan_to_watch: 0,
 		watching: 0,
@@ -30,6 +31,7 @@ export default function Profile() {
 		useCallback(() => {
 			getLocalFavorites().then((favs) => setFavCount(favs.length));
 			getWatchlistCounts().then(setWatchCounts);
+			getWishlist().then((items) => setWishlistCount(items.length));
 		}, []),
 	);
 
@@ -90,7 +92,7 @@ export default function Profile() {
 			<Image source={images.bg} className="absolute w-full z-0" />
 			<ScrollView
 				className="flex-1 px-6"
-				contentContainerStyle={{ paddingBottom: 120 }}
+				contentContainerStyle={{ paddingBottom: 40 }}
 				showsVerticalScrollIndicator={false}
 			>
 				{/* Avatar + name */}
@@ -112,17 +114,21 @@ export default function Profile() {
 						<Text className="text-light-300 text-xs mt-1">Favorites</Text>
 					</TouchableOpacity>
 					<View className="w-px bg-dark-100" />
-					<View className="items-center">
+					<TouchableOpacity
+						className="items-center"
+						onPress={() => router.push("/(tabs)/saved")}
+					>
 						<Text className="text-white text-xl font-bold">{totalInList}</Text>
 						<Text className="text-light-300 text-xs mt-1">My List</Text>
-					</View>
+					</TouchableOpacity>
 					<View className="w-px bg-dark-100" />
-					<View className="items-center">
-						<Text className="text-white text-xl font-bold">
-							{watchCounts.completed}
-						</Text>
-						<Text className="text-light-300 text-xs mt-1">Completed</Text>
-					</View>
+					<TouchableOpacity
+						className="items-center"
+						onPress={() => router.push("/(tabs)/wishlist")}
+					>
+						<Text className="text-white text-xl font-bold">{wishlistCount}</Text>
+						<Text className="text-light-300 text-xs mt-1">Wishlist</Text>
+					</TouchableOpacity>
 				</View>
 
 				{/* My List section */}
