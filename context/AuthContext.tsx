@@ -3,6 +3,7 @@ import {
     setCurrentUserId,
     syncFromSupabase,
 } from "@/services/localFavorites";
+import { clearPlaylistCache, setPlaylistUserId } from "@/services/localPlaylists";
 import { supabase } from "@/services/supabase";
 import { Session, User } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -32,6 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 			if (session?.user) {
 				// Restore userId reference and hydrate cache from Supabase
 				setCurrentUserId(session.user.id);
+				setPlaylistUserId(session.user.id);
 				syncFromSupabase(session.user.id);
 			}
 			setLoading(false);
@@ -45,6 +47,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
 			if (event === "SIGNED_IN" && session?.user) {
 				setCurrentUserId(session.user.id);
+				setPlaylistUserId(session.user.id);
 				// Pull this user's cloud data into the local cache
 				await syncFromSupabase(session.user.id);
 			}
@@ -53,6 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 				// session is null at this point, so we track the previous userId
 				// via the module-level ref before clearing it
 				setCurrentUserId(null);
+				setPlaylistUserId(null);
 			}
 		});
 
@@ -62,8 +66,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 	const signOut = async () => {
 		const userId = session?.user?.id;
 		// Clear this user's local cache before signing out
-		if (userId) await clearUserCache(userId);
+		if (userId) {
+			await clearUserCache(userId);
+			await clearPlaylistCache(userId);
+		}
 		setCurrentUserId(null);
+		setPlaylistUserId(null);
 		await supabase.auth.signOut();
 	};
 
