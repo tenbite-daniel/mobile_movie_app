@@ -11,7 +11,6 @@ import {
     removeSearchHistoryItem,
 } from "@/services/localFavorites";
 import { updateSearchCount } from "@/services/supabaseService";
-import useFetch from "@/services/useFetch";
 import { useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import RN, {
@@ -169,94 +168,107 @@ const ANILIST_URL = "https://graphql.anilist.co";
 const discoverMovies = async (
 	query: string, genre: string, year: string,
 	sort: SortOption, status: StatusOption,
-): Promise<Movie[]> => {
+	page = 1,
+): Promise<{ results: Movie[]; hasNextPage: boolean }> => {
 	if (query.trim()) {
 		const res = await fetch(
-			`${TMDB_BASE}/search/movie?query=${encodeURIComponent(query)}`,
+			`${TMDB_BASE}/search/movie?query=${encodeURIComponent(query)}&page=${page}`,
 			{ headers: TMDB_HEADERS },
 		);
-		return (await res.json()).results ?? [];
+		const data = await res.json();
+		return { results: data.results ?? [], hasNextPage: page < (data.total_pages ?? 1) };
 	}
 	// Status-based endpoints
 	const statusVal = tmdbMovieStatus(status);
 	if (statusVal === "upcoming") {
-		const res = await fetch(`${TMDB_BASE}/movie/upcoming`, { headers: TMDB_HEADERS });
-		return (await res.json()).results ?? [];
+		const res = await fetch(`${TMDB_BASE}/movie/upcoming?page=${page}`, { headers: TMDB_HEADERS });
+		const data = await res.json();
+		return { results: data.results ?? [], hasNextPage: page < (data.total_pages ?? 1) };
 	}
 	if (statusVal === "now_playing") {
-		const res = await fetch(`${TMDB_BASE}/movie/now_playing`, { headers: TMDB_HEADERS });
-		return (await res.json()).results ?? [];
+		const res = await fetch(`${TMDB_BASE}/movie/now_playing?page=${page}`, { headers: TMDB_HEADERS });
+		const data = await res.json();
+		return { results: data.results ?? [], hasNextPage: page < (data.total_pages ?? 1) };
 	}
-	const params = new URLSearchParams({ sort_by: tmdbSort(sort) });
+	const params = new URLSearchParams({ sort_by: tmdbSort(sort), page: String(page) });
 	if (genre) params.set("with_genres", genre);
 	if (year && year !== "Any") params.set("primary_release_year", year);
 	const res = await fetch(`${TMDB_BASE}/discover/movie?${params}`, { headers: TMDB_HEADERS });
-	return (await res.json()).results ?? [];
+	const data = await res.json();
+	return { results: data.results ?? [], hasNextPage: page < (data.total_pages ?? 1) };
 };
 
 const discoverTV = async (
 	query: string, genre: string, year: string,
 	sort: SortOption, status: StatusOption,
-): Promise<TVShow[]> => {
+	page = 1,
+): Promise<{ results: TVShow[]; hasNextPage: boolean }> => {
 	if (query.trim()) {
 		const res = await fetch(
-			`${TMDB_BASE}/search/tv?query=${encodeURIComponent(query)}&page=1`,
+			`${TMDB_BASE}/search/tv?query=${encodeURIComponent(query)}&page=${page}`,
 			{ headers: TMDB_HEADERS },
 		);
 		const data = await res.json();
 		const all: TVShow[] = data.results ?? [];
-		// Exclude Korean-language shows — those belong in the K-Drama tab
-		return all.filter(
-			(show: any) =>
-				show.original_language !== "ko" &&
-				!(Array.isArray(show.origin_country) && show.origin_country.includes("KR")),
-		);
+		return {
+			results: all.filter(
+				(show: any) =>
+					show.original_language !== "ko" &&
+					!(Array.isArray(show.origin_country) && show.origin_country.includes("KR")),
+			),
+			hasNextPage: page < (data.total_pages ?? 1),
+		};
 	}
-	const params = new URLSearchParams({ sort_by: tvSort(sort) });
+	const params = new URLSearchParams({ sort_by: tvSort(sort), page: String(page) });
 	if (genre) params.set("with_genres", genre);
 	if (year && year !== "Any") params.set("first_air_date_year", year);
 	const tvStatusVal = tmdbTVStatus(status);
 	if (tvStatusVal) params.set("with_status", tvStatusVal);
 	const res = await fetch(`${TMDB_BASE}/discover/tv?${params}`, { headers: TMDB_HEADERS });
-	return (await res.json()).results ?? [];
+	const data = await res.json();
+	return { results: data.results ?? [], hasNextPage: page < (data.total_pages ?? 1) };
 };
 
 const discoverKDrama = async (
 	query: string, genre: string, year: string,
 	sort: SortOption, status: StatusOption,
-): Promise<TVShow[]> => {
+	page = 1,
+): Promise<{ results: TVShow[]; hasNextPage: boolean }> => {
 	if (query.trim()) {
-		// TMDB search/tv ignores origin_country and original_language filters,
-		// so we fetch results and filter client-side for Korean-language content.
 		const res = await fetch(
-			`${TMDB_BASE}/search/tv?query=${encodeURIComponent(query)}&page=1`,
+			`${TMDB_BASE}/search/tv?query=${encodeURIComponent(query)}&page=${page}`,
 			{ headers: TMDB_HEADERS },
 		);
 		const data = await res.json();
 		const all: TVShow[] = data.results ?? [];
-		// Keep only Korean-language shows (origin_country includes "KR" or original_language is "ko")
-		return all.filter(
-			(show: any) =>
-				show.original_language === "ko" ||
-				(Array.isArray(show.origin_country) && show.origin_country.includes("KR")),
-		);
+		return {
+			results: all.filter(
+				(show: any) =>
+					show.original_language === "ko" ||
+					(Array.isArray(show.origin_country) && show.origin_country.includes("KR")),
+			),
+			hasNextPage: page < (data.total_pages ?? 1),
+		};
 	}
 	const params = new URLSearchParams({
 		sort_by: tvSort(sort),
 		with_origin_country: "KR",
 		with_original_language: "ko",
 		with_genres: genre || "18",
+		page: String(page),
 	});
 	if (year && year !== "Any") params.set("first_air_date_year", year);
 	const tvStatusVal = tmdbTVStatus(status);
 	if (tvStatusVal) params.set("with_status", tvStatusVal);
 	const res = await fetch(`${TMDB_BASE}/discover/tv?${params}`, { headers: TMDB_HEADERS });
-	return (await res.json()).results ?? [];
+	const data = await res.json();
+	return { results: data.results ?? [], hasNextPage: page < (data.total_pages ?? 1) };
 };
 
 const DISCOVER_ANIME_QUERY = `
-  query ($search: String, $genre: String, $year: Int, $sort: [MediaSort], $status: MediaStatus) {
-    Page(page: 1, perPage: 20) {
+  query ($search: String, $genre: String, $year: Int, $sort: [MediaSort], $status: MediaStatus, $page: Int) {
+    Page(page: $page, perPage: 20) {
+      pageInfo { hasNextPage currentPage }
       media(type: ANIME, search: $search, genre: $genre, seasonYear: $year, sort: $sort, status: $status) {
         id
         title { romaji english }
@@ -273,11 +285,14 @@ const DISCOVER_ANIME_QUERY = `
   }
 `;
 
+const HENTAI_GENRES = ["Hentai", "Ecchi"];
+
 const discoverAnime = async (
 	query: string, genre: string, year: string,
 	sort: SortOption, status: StatusOption,
-): Promise<Anime[]> => {
-	const variables: Record<string, any> = { sort: [anilistSort(sort)] };
+	page = 1,
+): Promise<{ results: Anime[]; hasNextPage: boolean }> => {
+	const variables: Record<string, any> = { sort: [anilistSort(sort)], page };
 	if (query.trim()) variables.search = query.trim();
 	if (genre) variables.genre = genre;
 	if (year && year !== "Any") variables.year = parseInt(year, 10);
@@ -291,7 +306,10 @@ const discoverAnime = async (
 	});
 	const json = await res.json();
 	if (json.errors) throw new Error(json.errors[0]?.message || "AniList error");
-	return json.data?.Page?.media ?? [];
+	const media: Anime[] = (json.data?.Page?.media ?? []).filter(
+		(a: Anime) => !a.genres?.some((g) => HENTAI_GENRES.includes(g)),
+	);
+	return { results: media, hasNextPage: json.data?.Page?.pageInfo?.hasNextPage ?? false };
 };
 
 // ─── Relevance scoring ───────────────────────────────────────────────────────
@@ -355,6 +373,14 @@ const Search = () => {
 	const [searchHistory, setSearchHistory] = useState<string[]>([]);
 	const [searchFocused, setSearchFocused] = useState(false);
 
+	// Pagination state
+	const [results, setResults] = useState<any[]>([]);
+	const [page, setPage] = useState(1);
+	const [hasNextPage, setHasNextPage] = useState(false);
+	const [loading, setLoading] = useState(false);
+	const [loadingMore, setLoadingMore] = useState(false);
+	const [error, setError] = useState<Error | null>(null);
+
 	// Load history on mount
 	useEffect(() => {
 		getSearchHistory().then(setSearchHistory);
@@ -383,8 +409,98 @@ const Search = () => {
 		setSearchHistory([]);
 	};
 
-	// Animated value for the drag-to-dismiss handle
+	// Core fetch — fetches a single page and either replaces or appends results
+	const fetchPage = async (pageNum: number, append: boolean) => {
+		if (append) setLoadingMore(true);
+		else { setLoading(true); setError(null); }
+
+		try {
+			let newResults: any[] = [];
+			let nextPage = false;
+
+			if (activeFilter === "movies") {
+				const r = await discoverMovies(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum);
+				newResults = r.results; nextPage = r.hasNextPage;
+			} else if (activeFilter === "tv") {
+				const r = await discoverTV(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum);
+				newResults = r.results; nextPage = r.hasNextPage;
+			} else if (activeFilter === "kdrama") {
+				const r = await discoverKDrama(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum);
+				newResults = r.results; nextPage = r.hasNextPage;
+			} else if (activeFilter === "anime") {
+				const r = await discoverAnime(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum);
+				newResults = r.results; nextPage = r.hasNextPage;
+			} else {
+				// "all" — parallel fetch, no pagination (merge across 4 APIs)
+				const [movies, tvShows, kdramas, anime] = await Promise.all([
+					discoverMovies(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum).catch(() => ({ results: [], hasNextPage: false })),
+					discoverTV(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum).catch(() => ({ results: [], hasNextPage: false })),
+					discoverKDrama(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum).catch(() => ({ results: [], hasNextPage: false })),
+					discoverAnime(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus, pageNum).catch(() => ({ results: [], hasNextPage: false })),
+				]);
+
+				const taggedMovies  = movies.results.map((m) => ({ ...m, _type: "movies"  as const }));
+				const taggedTV      = tvShows.results.map((t) => ({ ...t, _type: "tv"     as const }));
+				const taggedKDramas = kdramas.results.map((k) => ({ ...k, _type: "kdrama" as const }));
+				const taggedAnime   = anime.results.map((a)  => ({ ...a, _type: "anime"  as const }));
+				nextPage = movies.hasNextPage || tvShows.hasNextPage || kdramas.hasNextPage || anime.hasNextPage;
+
+				const all = [...taggedMovies, ...taggedTV, ...taggedKDramas, ...taggedAnime];
+
+				if (searchQuery.trim()) {
+					all.sort((a, b) => scoreRelevance(getItemTitle(b), searchQuery) - scoreRelevance(getItemTitle(a), searchQuery));
+					newResults = all;
+				} else {
+					const merged: any[] = [];
+					const maxLen = Math.max(taggedMovies.length, taggedTV.length, taggedKDramas.length, taggedAnime.length);
+					for (let i = 0; i < maxLen; i++) {
+						if (taggedMovies[i])  merged.push(taggedMovies[i]);
+						if (taggedTV[i])      merged.push(taggedTV[i]);
+						if (taggedKDramas[i]) merged.push(taggedKDramas[i]);
+						if (taggedAnime[i])   merged.push(taggedAnime[i]);
+					}
+					newResults = merged;
+				}
+			}
+
+			setResults((prev) => append ? [...prev, ...newResults] : newResults);
+			setHasNextPage(nextPage);
+			setPage(pageNum);
+		} catch (err) {
+			setError(err instanceof Error ? err : new Error("An error occurred"));
+		} finally {
+			setLoading(false);
+			setLoadingMore(false);
+		}
+	};
+
+	// Reset and refetch from page 1 whenever filters/query change
+	useEffect(() => {
+		setResults([]);
+		setPage(1);
+		setHasNextPage(false);
+		const timeout = setTimeout(() => {
+			fetchPage(1, false);
+			if (searchQuery.trim()) handleSearchSubmit(searchQuery);
+		}, 600);
+		return () => clearTimeout(timeout);
+	}, [searchQuery, activeFilter, selectedGenre, selectedYear, selectedSort, selectedStatus]);
+
+	// Track search count for movies
+	useEffect(() => {
+		if (activeFilter === "movies" && results.length && (results[0] as Movie).title) {
+			updateSearchCount(searchQuery, results[0] as Movie);
+		}
+	}, [results]);
+
+	const handleLoadMore = () => {
+		if (!hasNextPage || loadingMore || loading) return;
+		fetchPage(page + 1, true);
+	};
+
+	// translateY must be declared before panResponder which references it
 	const translateY = useRef(new Animated.Value(0)).current;
+
 	const panResponder = useRef(
 		PanResponder.create({
 			onStartShouldSetPanResponder: () => true,
@@ -423,79 +539,6 @@ const Search = () => {
 			setActiveFilter(params.filter as FilterType);
 		}
 	}, [params.filter]);
-
-	const { data: results, loading, error, refetch, reset } = useFetch<(Movie | TVShow | Anime)[]>(() => {
-		if (activeFilter === "movies")
-			return discoverMovies(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus);
-		if (activeFilter === "tv")
-			return discoverTV(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus);
-		if (activeFilter === "kdrama")
-			return discoverKDrama(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus);
-		if (activeFilter === "anime")
-			return discoverAnime(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus);
-		// "all" — fetch from all 4 APIs in parallel and merge
-		return Promise.all([
-			discoverMovies(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus).catch(() => []),
-			discoverTV(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus).catch(() => []),
-			discoverKDrama(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus).catch(() => []),
-			discoverAnime(searchQuery, selectedGenre, selectedYear, selectedSort, selectedStatus).catch(() => []),
-		]).then(([movies, tvShows, kdramas, anime]) => {
-			// Tag each item with _type so renderItem knows which card to use.
-			// Use the same values as FilterType ("movies", "tv", "kdrama", "anime")
-			// so effectiveType comparisons are consistent.
-			const taggedMovies  = (movies  as Movie[]).map((m) => ({ ...m, _type: "movies"  as const }));
-			const taggedTV      = (tvShows as TVShow[]).map((t) => ({ ...t, _type: "tv"     as const }));
-			const taggedKDramas = (kdramas as TVShow[]).map((k) => ({ ...k, _type: "kdrama" as const }));
-			const taggedAnime   = (anime   as Anime[]).map((a)  => ({ ...a, _type: "anime"  as const }));
-
-			const all = [...taggedMovies, ...taggedTV, ...taggedKDramas, ...taggedAnime];
-
-			if (searchQuery.trim()) {
-				// Sort by relevance to the search query so the closest matches
-				// appear first regardless of content type
-				all.sort((a, b) => {
-					const scoreA = scoreRelevance(getItemTitle(a), searchQuery);
-					const scoreB = scoreRelevance(getItemTitle(b), searchQuery);
-					return scoreB - scoreA;
-				});
-			} else {
-				// No query — interleave one of each type so the grid looks balanced
-				const merged: any[] = [];
-				const maxLen = Math.max(
-					taggedMovies.length, taggedTV.length,
-					taggedKDramas.length, taggedAnime.length,
-				);
-				for (let i = 0; i < maxLen; i++) {
-					if (taggedMovies[i])  merged.push(taggedMovies[i]);
-					if (taggedTV[i])      merged.push(taggedTV[i]);
-					if (taggedKDramas[i]) merged.push(taggedKDramas[i]);
-					if (taggedAnime[i])   merged.push(taggedAnime[i]);
-				}
-				return merged;
-			}
-
-			return all;
-		});
-	}, false);
-
-	useEffect(() => {
-		// Clear stale results immediately when filter changes to prevent
-		// mismatched data (e.g. anime objects) being passed to the wrong card component
-		reset();
-		const timeout = setTimeout(() => {
-			refetch();
-			if (searchQuery.trim()) {
-				handleSearchSubmit(searchQuery);
-			}
-		}, 600);
-		return () => clearTimeout(timeout);
-	}, [searchQuery, activeFilter, selectedGenre, selectedYear, selectedSort, selectedStatus]);
-
-	useEffect(() => {
-		if (activeFilter === "movies" && results?.length && (results[0] as Movie).title) {
-			updateSearchCount(searchQuery, results[0] as Movie);
-		}
-	}, [results]);
 
 	const genres =
 		activeFilter === "movies" ? MOVIE_GENRES.map((g) => g.label)
@@ -568,7 +611,21 @@ const Search = () => {
 				numColumns={3}
 				key={activeFilter}
 				columnWrapperStyle={{ justifyContent: "flex-start", gap: GAP, marginVertical: 8 }}
-				contentContainerStyle={{ paddingBottom: 120 }}
+				contentContainerStyle={{ paddingBottom: 40 }}
+				onEndReached={handleLoadMore}
+				onEndReachedThreshold={0.3}
+				ListFooterComponent={
+					loadingMore ? (
+						<View className="py-6 items-center">
+							<ActivityIndicator size="small" color="#ab8bff" />
+							<Text className="text-light-300 text-xs mt-2">Loading more...</Text>
+						</View>
+					) : hasNextPage && results.length > 0 ? (
+						<View className="py-4 items-center">
+							<Text className="text-light-300 text-xs">Scroll for more</Text>
+						</View>
+					) : null
+				}
 				ListHeaderComponent={
 					<>
 						<View className="w-full flex-row justify-center mt-20 items-center">
