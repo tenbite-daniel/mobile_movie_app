@@ -4,10 +4,13 @@ import {
     WatchStatus,
     sbAddFavorite,
     sbAddToWatchlist,
+    sbAddToWishlist,
     sbGetFavorites,
     sbGetWatchlist,
+    sbGetWishlist,
     sbRemoveFavorite,
     sbRemoveFromWatchlist,
+    sbRemoveFromWishlist,
 } from "./supabaseService";
 
 // Re-export types so all existing imports keep working
@@ -26,13 +29,24 @@ export const setCurrentUserId = (id: string | null) => {
 
 // ─── User-scoped cache key helpers ───────────────────────────────────────────
 
-const favKey    = (uid: string) => `local_favorites_${uid}`;
-const listKey   = (uid: string) => `local_watchlist_${uid}`;
-const recentKey = (uid: string) => `recent_activity_${uid}`;
+const favKey      = (uid: string) => `local_favorites_${uid}`;
+const listKey     = (uid: string) => `local_watchlist_${uid}`;
+const recentKey   = (uid: string) => `recent_activity_${uid}`;
+const wishlistKey = (uid: string) => `wishlist_${uid}`;
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
 export interface LocalFavorite {
+	item_id: number;
+	type: FavoriteType;
+	title: string;
+	poster_url: string;
+	vote_average: number;
+	year: string;
+	saved_at: string;
+}
+
+export interface WishlistItem {
 	item_id: number;
 	type: FavoriteType;
 	title: string;
@@ -62,9 +76,10 @@ export interface WatchlistItem {
  */
 export const syncFromSupabase = async (userId: string): Promise<void> => {
 	try {
-		const [sbFavs, sbList] = await Promise.all([
+		const [sbFavs, sbList, sbWish] = await Promise.all([
 			sbGetFavorites(userId),
 			sbGetWatchlist(userId),
+			sbGetWishlist(userId),
 		]);
 
 		const localFavs: LocalFavorite[] = sbFavs.map((f) => ({
@@ -88,9 +103,20 @@ export const syncFromSupabase = async (userId: string): Promise<void> => {
 			added_at: w.added_at ?? new Date().toISOString(),
 		}));
 
+		const localWish: WishlistItem[] = sbWish.map((w) => ({
+			item_id: w.item_id,
+			type: w.type,
+			title: w.title,
+			poster_url: w.poster_url,
+			vote_average: w.vote_average,
+			year: w.year,
+			saved_at: w.saved_at ?? new Date().toISOString(),
+		}));
+
 		await Promise.all([
 			AsyncStorage.setItem(favKey(userId), JSON.stringify(localFavs)),
 			AsyncStorage.setItem(listKey(userId), JSON.stringify(localList)),
+			AsyncStorage.setItem(wishlistKey(userId), JSON.stringify(localWish)),
 		]);
 	} catch (e) {
 		// Non-fatal — app still works from whatever is already in cache
@@ -108,6 +134,7 @@ export const clearUserCache = async (userId: string): Promise<void> => {
 			AsyncStorage.removeItem(favKey(userId)),
 			AsyncStorage.removeItem(listKey(userId)),
 			AsyncStorage.removeItem(recentKey(userId)),
+			AsyncStorage.removeItem(wishlistKey(userId)),
 		]);
 	} catch {}
 };
@@ -178,6 +205,65 @@ export const isLocalFavorite = async (
 
 	const all = await readFavorites(uid);
 	return all.some((f) => f.item_id === itemId && f.type === type);
+};
+
+// ─── Wishlist (simple saved list, no status) ─────────────────────────────────
+
+const readWishlist = async (uid: string): Promise<WishlistItem[]> => {
+	try {
+		const raw = await AsyncStorage.getItem(wishlistKey(uid));
+		return raw ? JSON.parse(raw) : [];
+	} catch {
+		return [];
+	}
+};
+
+const writeWishlist = async (uid: string, items: WishlistItem[]): Promise<void> => {
+	await AsyncStorage.setItem(wishlistKey(uid), JSON.stringify(items));
+};
+
+export const addToWishlist = async (
+	item: Omit<WishlistItem, "saved_at">,
+): Promise<void> => {
+	const uid = _currentUserId;
+	if (!uid) return;
+	const all = await readWishlist(uid);
+	const exists = all.some((w) => w.item_id === item.item_id && w.type === item.type);
+	if (exists) return;
+	await writeWishlist(uid, [{ ...item, saved_at: new Date().toISOString() }, ...all]);
+
+	sbAddToWishlist(uid, item).catch((e) => console.warn("sbAddToWishlist failed:", e));
+};
+
+export const removeFromWishlist = async (
+	itemId: number,
+	type: FavoriteType,
+): Promise<void> => {
+	const uid = _currentUserId;
+	if (!uid) return;
+	const all = await readWishlist(uid);
+	await writeWishlist(uid, all.filter((w) => !(w.item_id === itemId && w.type === type)));
+
+	sbRemoveFromWishlist(uid, itemId, type).catch((e) =>
+		console.warn("sbRemoveFromWishlist failed:", e),
+	);
+};
+
+export const getWishlist = async (type?: FavoriteType): Promise<WishlistItem[]> => {
+	const uid = _currentUserId;
+	if (!uid) return [];
+	const all = await readWishlist(uid);
+	return type ? all.filter((w) => w.type === type) : all;
+};
+
+export const isInWishlist = async (
+	itemId: number,
+	type: FavoriteType,
+): Promise<boolean> => {
+	const uid = _currentUserId;
+	if (!uid) return false;
+	const all = await readWishlist(uid);
+	return all.some((w) => w.item_id === itemId && w.type === type);
 };
 
 // ─── Watchlist ────────────────────────────────────────────────────────────────
