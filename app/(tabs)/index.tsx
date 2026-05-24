@@ -6,7 +6,7 @@ import { icons } from "@/constants/icons";
 import { images } from "@/constants/images";
 import { useAuth } from "@/context/AuthContext";
 import { fetchPopularAnime } from "@/services/anilist";
-import { fetchKDramas, fetchMovies, fetchTVShows } from "@/services/api";
+import { LatestItem, fetchKDramas, fetchLatestAll, fetchMovies, fetchTVShows } from "@/services/api";
 import {
     RecentActivityItem,
     WatchStatus,
@@ -141,6 +141,51 @@ const RecentCard = ({ item }: { item: RecentActivityItem }) => {
 	);
 };
 
+// ─── Latest combined card ─────────────────────────────────────────────────────
+
+const TYPE_BADGE: Record<LatestItem["type"], { label: string; color: string }> = {
+	movie: { label: "Movie", color: "#3b82f6" },
+	tv: { label: "TV", color: "#10b981" },
+	kdrama: { label: "K-Drama", color: "#f59e0b" },
+	anime: { label: "Anime", color: "#ab8bff" },
+};
+
+const LatestCard = ({ item }: { item: LatestItem }) => {
+	const handlePress = () => {
+		if (item.type === "movie") router.push(`/movies/${item.id}`);
+		else if (item.type === "anime") router.push(`/anime/${item.id}`);
+		else router.push(`/tv/${item.id}`);
+	};
+
+	const badge = TYPE_BADGE[item.type];
+
+	return (
+		<TouchableOpacity onPress={handlePress} className="mr-3 w-28">
+			<View className="relative">
+				<Image
+					source={{ uri: item.poster_url || "https://placehold.cn/500x400/1a1a1a/ffffff.png" }}
+					className="w-28 h-40 rounded-xl"
+					resizeMode="cover"
+				/>
+				<View
+					className="absolute top-2 left-2 px-2 py-0.5 rounded-full"
+					style={{ backgroundColor: badge.color + "44" }}
+				>
+					<Text className="text-xs font-bold" style={{ color: badge.color }}>
+						{badge.label}
+					</Text>
+				</View>
+			</View>
+			<Text className="text-white text-xs font-semibold mt-2" numberOfLines={1}>
+				{item.title}
+			</Text>
+			<Text className="text-light-300 text-xs mt-0.5">
+				{item.date?.slice(0, 10)}
+			</Text>
+		</TouchableOpacity>
+	);
+};
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function Index() {
@@ -163,6 +208,12 @@ export default function Index() {
 	} = useFetch(fetchPopularAnime);
 
 	const {
+		data: latest,
+		loading: latestLoading,
+		error: latestError,
+	} = useFetch(fetchLatestAll);
+
+	const {
 		data: kdramas,
 		loading: kdramaLoading,
 		error: kdramaError,
@@ -180,8 +231,8 @@ export default function Index() {
 		error: moviesError,
 	} = useFetch(() => fetchMovies({ query: "" }));
 
-	const isLoading = animeLoading || kdramaLoading || tvLoading || moviesLoading;
-	const hasError = animeError || kdramaError || tvError || moviesError;
+	const isLoading = animeLoading || kdramaLoading || tvLoading || moviesLoading || latestLoading;
+	const hasError = animeError || kdramaError || tvError || moviesError || latestError;
 	const errorMessage =
 		animeError?.message ||
 		kdramaError?.message ||
@@ -229,6 +280,22 @@ export default function Index() {
 							</>
 						)}
 
+						{/* Latest — combined by date */}
+						{latest && latest.length > 0 && (
+							<>
+								<SectionHeader title="Latest" />
+								<FlatList
+									horizontal
+									showsHorizontalScrollIndicator={false}
+									ItemSeparatorComponent={() => <View className="w-1" />}
+									className="mb-4"
+									data={latest}
+									renderItem={({ item }) => <LatestCard item={item} />}
+									keyExtractor={(item) => `latest-${item.type}-${item.id}`}
+								/>
+							</>
+						)}
+
 						{/* Anime */}
 						<SectionHeader title="Popular Anime" filter="anime" />
 						<FlatList
@@ -271,7 +338,7 @@ export default function Index() {
 							horizontal
 							showsHorizontalScrollIndicator={false}
 							ItemSeparatorComponent={() => <View className="w-4" />}
-							className="mb-10"
+							className="mb-4"
 						/>
 					</View>
 				)}
