@@ -190,7 +190,7 @@ const WatchlistScreen = () => {
 					/>
 				)}
 				className="px-5"
-				contentContainerStyle={{ paddingBottom: 120 }}
+				contentContainerStyle={{ paddingBottom: 40 }}
 				ListHeaderComponent={
 					<>
 						{/* Header with back button */}

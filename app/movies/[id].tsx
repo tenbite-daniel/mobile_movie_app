@@ -8,6 +8,7 @@ import {
     removeLocalFavorite,
     WatchStatus,
 } from "@/services/localFavorites";
+import { useAuth } from "@/context/AuthContext";
 import useFetch from "@/services/useFetch";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";

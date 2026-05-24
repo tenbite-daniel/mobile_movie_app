@@ -142,7 +142,7 @@ const Favorites = () => {
 				keyExtractor={(item) => `${item.type}-${item.item_id}`}
 				renderItem={({ item }) => <FavoriteCard item={item} onRemove={handleRemove} />}
 				className="px-5"
-				contentContainerStyle={{ paddingBottom: 120 }}
+				contentContainerStyle={{ paddingBottom: 40 }}
 				ListHeaderComponent={
 					<>
 						<View className="w-full flex-row justify-center mt-20 mb-6 items-center">
