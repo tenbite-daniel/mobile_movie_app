@@ -108,7 +108,14 @@ const ANIME_DETAILS_QUERY = `
   }
 `;
 
-export const fetchPopularAnime = async (): Promise<Anime[]> => {
+const HENTAI_GENRES = ["Hentai", "Ecchi"];
+
+const filterAdultAnime = (list: Anime[]): Anime[] =>
+	list.filter(
+		(a) => !a.genres?.some((g) => HENTAI_GENRES.includes(g)),
+	);
+
+export const fetchPopularAnime = async (page = 1): Promise<Anime[]> => {
 	const response = await fetch(ANILIST_URL, {
 		method: "POST",
 		headers: {
@@ -117,7 +124,7 @@ export const fetchPopularAnime = async (): Promise<Anime[]> => {
 		},
 		body: JSON.stringify({
 			query: POPULAR_ANIME_QUERY,
-			variables: { page: 1, perPage: 20 },
+			variables: { page, perPage: 20 },
 		}),
 	});
 
@@ -129,7 +136,7 @@ export const fetchPopularAnime = async (): Promise<Anime[]> => {
 		throw new Error(json.errors[0]?.message || "AniList API error");
 	}
 
-	return json.data.Page.media as Anime[];
+	return filterAdultAnime(json.data.Page.media as Anime[]);
 };
 
 export const fetchAnimeDetails = async (id: string): Promise<AnimeDetails> => {
@@ -156,7 +163,7 @@ export const fetchAnimeDetails = async (id: string): Promise<AnimeDetails> => {
 	return json.data.Media as AnimeDetails;
 };
 
-export const searchAnime = async (query: string): Promise<Anime[]> => {
+export const searchAnime = async (query: string, page = 1): Promise<Anime[]> => {
 	const response = await fetch(ANILIST_URL, {
 		method: "POST",
 		headers: {
@@ -165,7 +172,7 @@ export const searchAnime = async (query: string): Promise<Anime[]> => {
 		},
 		body: JSON.stringify({
 			query: SEARCH_ANIME_QUERY,
-			variables: { search: query, page: 1, perPage: 20 },
+			variables: { search: query, page, perPage: 20 },
 		}),
 	});
 
@@ -177,5 +184,5 @@ export const searchAnime = async (query: string): Promise<Anime[]> => {
 		throw new Error(json.errors[0]?.message || "AniList API error");
 	}
 
-	return json.data.Page.media as Anime[];
+	return filterAdultAnime(json.data.Page.media as Anime[]);
 };
