@@ -96,8 +96,8 @@ const WatchlistModal = ({ visible, onClose, item }: WatchlistModalProps) => {
 			await addRecentActivity({ ...item, action: "watchlisted", status });
 			setCurrentStatus(status);
 			const label = WATCH_STATUSES.find((s) => s.value === status)?.label ?? status;
-			setFeedback(`Saved as "${label}"`);
-			setTimeout(onClose, 700);
+			setFeedback(`Saved as "${label}" ✓`);
+			// No auto-close — user dismisses manually
 		} finally {
 			setLoading(false);
 		}
@@ -109,7 +109,7 @@ const WatchlistModal = ({ visible, onClose, item }: WatchlistModalProps) => {
 			await removeFromWatchlist(item.item_id, item.type);
 			setCurrentStatus(null);
 			setFeedback("Removed from list");
-			setTimeout(onClose, 700);
+			// No auto-close — user dismisses manually
 		} finally {
 			setLoading(false);
 		}
