@@ -1,118 +1,58 @@
-import { icons } from "@/constants/icons";
-import { images } from "@/constants/images";
+import CustomTabBar from "@/components/CustomTabBar";
+import SelectionBar from "@/components/SelectionBar";
 import { useAuth } from "@/context/AuthContext";
-import { Tabs, router } from "expo-router";
-import React from "react";
-import { Image, ImageBackground, Text, TouchableOpacity, View } from "react-native";
+import { Tabs, router, usePathname } from "expo-router";
+import React, { useRef } from "react";
+import { View } from "react-native";
 
-const TabIcon = ({ focused, icon, title }: any) => {
-	if (focused) {
-		return (
-			<ImageBackground
-				source={images.highlight}
-				className="flex flex-row w-full flex-1 min-w-[112px] min-h-16 mt-6 justify-center items-center rounded-full overflow-hidden ml-2"
-			>
-				<Image source={icon} tintColor="#151312" className="size-5" />
-				<Text className="text-secondary text-base font-semibold">{title}</Text>
-			</ImageBackground>
-		);
-	}
-	return (
-		<View className="size-full justify-center items-center mt-4 rounded-full">
-			<Image source={icon} tintColor="#A8B5DB" className="size-5" />
-		</View>
-	);
+const TAB_NAMES = ["index", "search", "saved", "wishlist", "playlists", "profile"];
+
+const getActiveIndex = (pathname: string) => {
+  if (pathname === "/" || pathname === "/index") return 0;
+  const match = TAB_NAMES.findIndex((t) => pathname.startsWith(`/${t}`));
+  return match >= 0 ? match : 0;
 };
 
 const _layout = () => {
-	const { user } = useAuth();
+  const { user } = useAuth();
+  const pathname = usePathname();
+  const activeIndex = getActiveIndex(pathname);
+  const jumpToRef = useRef<((name: string) => void) | null>(null);
 
-	return (
-		<Tabs
-			screenOptions={{
-				tabBarShowLabel: false,
-				tabBarItemStyle: {
-					width: "100%",
-					height: "100%",
-					justifyContent: "center",
-					alignItems: "center",
-				},
-				tabBarStyle: {
-					backgroundColor: "#0f0D23",
-					borderRadius: 50,
-					marginHorizontal: 20,
-					marginBottom: 36,
-					height: 52,
-					position: "absolute",
-					overflow: "hidden",
-					borderWidth: 0,
-					borderColor: "#0f0d23",
-				},
-			}}
-		>
-			<Tabs.Screen
-				name="index"
-				options={{
-					title: "Home",
-					headerShown: false,
-					tabBarIcon: ({ focused }) => (
-						<TabIcon focused={focused} icon={icons.home} title="Home" />
-					),
-				}}
-			/>
-			<Tabs.Screen
-				name="search"
-				options={{
-					title: "Search",
-					headerShown: false,
-					tabBarIcon: ({ focused }) => (
-						<TabIcon focused={focused} icon={icons.search} title="Search" />
-					),
-				}}
-			/>
-			<Tabs.Screen
-				name="saved"
-				options={{
-					title: "Favorites",
-					headerShown: false,
-					tabBarIcon: ({ focused }) => (
-						<TabIcon focused={focused} icon={icons.save} title="Favorites" />
-					),
-				}}
-			/>
-			<Tabs.Screen
-				name="profile"
-				options={{
-					title: user ? "Profile" : "Sign In",
-					headerShown: false,
-					tabBarButton: user
-						? undefined
-						: (props) => (
-							<TouchableOpacity
-								{...props}
-								onPress={() => router.push("/(auth)/login")}
-								style={{
-									flex: 1,
-									alignItems: "center",
-									justifyContent: "center",
-									height: "100%",
-								}}
-							>
-								<View style={{ alignItems: "center", justifyContent: "center", marginTop: 30 }}>
-									<Image source={icons.person} tintColor="#ab8bff" style={{ width: 22, height: 27 }} />
-									<Text style={{ color: "#ab8bff", fontSize: 12, fontWeight: "700", marginTop: 2 }}>
-										Sign In
-									</Text>
-								</View>
-							</TouchableOpacity>
-						),
-					tabBarIcon: ({ focused }) => (
-						<TabIcon focused={focused} icon={icons.person} title="Profile" />
-					),
-				}}
-			/>
-		</Tabs>
-	);
+  const handleTabPress = (index: number, name: string) => {
+    if (name === "profile" && !user) {
+      router.replace("/(auth)/login" as any);
+      return;
+    }
+    jumpToRef.current?.(name);
+  };
+
+  return (
+    <View style={{ flex: 1 }}>
+      <SelectionBar />
+      <Tabs
+        screenOptions={{
+          tabBarShowLabel: false,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+          animation: "none",
+        }}
+        tabBar={({ navigation }) => {
+          jumpToRef.current = navigation.navigate;
+          return null;
+        }}
+      >
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="search" />
+        <Tabs.Screen name="saved" />
+        <Tabs.Screen name="wishlist" />
+        <Tabs.Screen name="playlists" />
+        <Tabs.Screen name="profile" />
+      </Tabs>
+
+      <CustomTabBar activeIndex={activeIndex} onTabPress={handleTabPress} screenBg="#030014" />
+    </View>
+  );
 };
 
 export default _layout;
